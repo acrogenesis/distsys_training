@@ -6,7 +6,7 @@ defmodule PingPongTest do
 
   alias PingPong.{
     Consumer,
-    Producer,
+    Producer
   }
 
   test "consumers can subscribe to a producer" do
@@ -16,24 +16,24 @@ defmodule PingPongTest do
     assert_receive {:hello, ^consumer}
 
     assert capture_log(fn ->
-      send(consumer, {:ping, 0})
-    end) =~ "Received expected value: 0"
+             send(consumer, {:ping, 0})
+           end) =~ "Received expected value: 0"
 
     assert capture_log(fn ->
-      send(consumer, {:ping, 1})
-    end) =~ "Received expected value: 1"
+             send(consumer, {:ping, 1})
+           end) =~ "Received expected value: 1"
 
     assert capture_log(fn ->
-      send(consumer, {:ping, 2})
-    end) =~ "Received expected value: 2"
+             send(consumer, {:ping, 2})
+           end) =~ "Received expected value: 2"
 
     assert capture_log(fn ->
-      send(consumer, {:ping, 4})
-    end) =~ "Received unexpected value: 4"
+             send(consumer, {:ping, 4})
+           end) =~ "Received unexpected value: 4"
 
     assert capture_log(fn ->
-      send(consumer, {:ping, 5})
-    end) =~ "Received expected value: 5"
+             send(consumer, {:ping, 5})
+           end) =~ "Received expected value: 5"
   end
 
   test "Works across a cluster" do
@@ -77,4 +77,3 @@ defmodule PingPongTest do
     assert_receive {:value, 7}
   end
 end
-

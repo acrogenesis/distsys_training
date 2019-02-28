@@ -14,6 +14,7 @@ defmodule PingPong do
 
     def produce(producer) do
       send(producer, {:produce, self()})
+
       receive do
         :finished ->
           :ok
@@ -41,13 +42,13 @@ defmodule PingPong do
           Logger.info("Producing: #{n}")
           send(consumer, {:ping, n})
           send(pid, :finished)
-          producer(consumer, n+1)
+          producer(consumer, n + 1)
 
         :stop ->
           send(consumer, :bye)
 
         :crash ->
-          42/0
+          42 / 0
       end
     end
   end
@@ -62,11 +63,23 @@ defmodule PingPong do
     def stop, do: send(:consumer, :stop)
 
     def init(producer) do
-      # Your code goes here!!!
+      send(producer, {:hello, self()})
+      consume(0)
     end
 
     def consume(expected) do
-      # Your code goes here!!!
+      next_num =
+        receive do
+          {:ping, ^expected} ->
+            Logger.info("Received expected value: #{expected}")
+            expected + 1
+
+          {:ping, unexpected} ->
+            Logger.info("Received unexpected value: #{unexpected}")
+            unexpected + 1
+        end
+
+      consume(next_num)
     end
   end
 end
