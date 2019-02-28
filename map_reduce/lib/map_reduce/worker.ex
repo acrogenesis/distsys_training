@@ -30,18 +30,20 @@ defmodule MapReduce.Worker do
     Logger.error("Worker is terminating")
     :ok
   end
+
   def do_work(master, total_jobs) do
     receive do
       {name, {type, job}, f, other_count} ->
         case type do
-          :map    -> do_map(name, job, f, other_count)
+          :map -> do_map(name, job, f, other_count)
           :reduce -> do_reduce(name, job, f, other_count)
         end
+
         send(master, {:finished, self(), {type, job}})
         result = Storage.incr(:erlang.term_to_binary(self()))
     end
 
-    do_work(master, total_jobs-1)
+    do_work(master, total_jobs - 1)
   end
 
   def do_map(name, job, f, reducer_count) do
@@ -61,7 +63,7 @@ defmodule MapReduce.Worker do
     Logger.info(fn -> "Worker.reduce: #{job}" end)
 
     kvs =
-      (0..map_count)
+      0..map_count
       |> Enum.map(fn map_id -> Job.reduce_name(name, map_id, job) end)
       |> Enum.map(fn key -> Storage.get(key) end)
       |> Enum.map(fn {:ok, contents} -> contents end)
@@ -83,7 +85,7 @@ defmodule MapReduce.Worker do
     name
     |> merge_names(reduce_count)
     |> Enum.map(fn key -> Storage.get(key) end)
-    |> Enum.map(fn {:ok, result} -> result  end)
+    |> Enum.map(fn {:ok, result} -> result end)
     |> Enum.reject(&is_nil/1)
     |> Enum.flat_map(&:erlang.binary_to_term/1)
     |> Enum.map(fn kv -> {kv.key, kv.value} end)
@@ -91,17 +93,16 @@ defmodule MapReduce.Worker do
   end
 
   defp merge_names(name, reduce_count) do
-    (0..reduce_count)
+    0..reduce_count
     |> Enum.map(fn r -> Job.merge_name(name, r) end)
   end
 
   defp partition(job_id, map_id, map, reducer_count) do
     reducer =
       map.key
-      |> :erlang.phash2
+      |> :erlang.phash2()
       |> Integer.mod(reducer_count)
 
     Job.reduce_name(job_id, map_id, reducer)
   end
 end
-

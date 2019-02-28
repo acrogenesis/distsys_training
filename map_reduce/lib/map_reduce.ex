@@ -5,7 +5,7 @@ defmodule MapReduce do
 
   alias MapReduce.{
     Worker,
-    FileUtil,
+    FileUtil
   }
 
   require Logger
@@ -40,51 +40,69 @@ defmodule MapReduce do
     Logger.info("Starting master process")
     FileUtil.split(name, file, @map_count)
 
-    map_jobs    = for i <- 0..@map_count, do: {:map, i}
+    map_jobs = for i <- 0..@map_count, do: {:map, i}
     reduce_jobs = for i <- 0..@reduce_count, do: {:reduce, i}
 
-    {:ok, workers} = assign_work(map_jobs, fn pid, job ->
-      Worker.work(pid, name, job, &mod.map/1, @reduce_count)
-    end)
+    {:ok, workers} =
+      assign_work(map_jobs, fn pid, job ->
+        Worker.work(pid, name, job, &mod.map/1, @reduce_count)
+      end)
 
-    {:ok, _} = assign_work(reduce_jobs, [], [], workers, fn pid, job ->
-      Worker.work(pid, name, job, &mod.reduce/2, @map_count)
-    end)
+    {:ok, _} =
+      assign_work(reduce_jobs, [], [], workers, fn pid, job ->
+        Worker.work(pid, name, job, &mod.reduce/2, @map_count)
+      end)
 
     result = Worker.merge(name, @reduce_count)
     send(parent, {:result, result})
   end
 
   def assign_work(jobs, pending \\ [], completed \\ [], available_workers \\ [], f)
+
   def assign_work([], [], _completed, workers, _) do
     {:ok, workers}
   end
+
   def assign_work(jobs, pending, completed, workers, f) do
     {jobs, pending, workers, assignments} = assign_idle_workers(jobs, pending, workers)
 
-    for {worker, job} <- assignments, do: f.(worker, job)
+    worker_jobs = for {worker, job} <- assignments, do: f.(worker, job)
 
     receive do
       {:ready, pid} ->
+        Process.monitor(pid)
+        IO.inspect(pid, label: "READY JOB")
         assign_work(jobs, pending, completed, [pid | workers], f)
 
       {:finished, pid, job} ->
+        # Process.demonitor(pid)
+        IO.inspect(pid, label: "Finished PID")
+        IO.inspect(job, label: "Finished JOB")
         assign_work(jobs, pending -- [job], [job | completed], [pid | workers], f)
+
+      {:DOWN, ref, _, pid, _} ->
+        # assign_work(jobs ++ [], pending -- [job], completed, [pid | workers], f)
+        IO.inspect(worker_jobs, label: "WORKER JOBS")
+        IO.inspect(pid, label: "DOWN PID")
     end
   end
 
   def assign_idle_workers(jobs, pending, workers, groups \\ [])
+
   def assign_idle_workers([], pending, workers, groups) do
     {[], pending, workers, groups}
   end
+
   def assign_idle_workers(jobs, pending, [], groups) do
     {jobs, pending, [], groups}
   end
+
   def assign_idle_workers([job | jobs], pending, [worker | workers], groups) do
     {jobs, [job | pending], workers, [{worker, job} | groups]}
   end
 
-  def collect_results(count, _, acc) when length(acc) == count+1, do: :ok
+  def collect_results(count, _, acc) when length(acc) == count + 1, do: :ok
+
   def collect_results(count, type, acc) do
     receive do
       {:ok, ^type, job_id} ->
@@ -92,4 +110,3 @@ defmodule MapReduce do
     end
   end
 end
-
