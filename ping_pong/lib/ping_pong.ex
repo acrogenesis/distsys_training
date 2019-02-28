@@ -77,6 +77,10 @@ defmodule PingPong do
           {:ping, unexpected} ->
             Logger.info("Received unexpected value: #{unexpected}")
             unexpected + 1
+
+          {:expected_value, pid} ->
+            send(pid, {:value, expected})
+            consume(expected)
         end
 
       consume(next_num)
